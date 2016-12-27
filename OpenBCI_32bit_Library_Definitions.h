@@ -11,7 +11,8 @@
 #define _____OpenBCI_32bit_Library_Definitions_h
 
 // The default baud rate
-#define OPENBCI_BAUD_RATE 115200
+#define OPENBCI_BAUD_RATE_WIFI 115200
+#define OPENBCI_BAUD_RATE_USB 460800 //115200
 
 // File transmissions
 #define OPENBCI_BOP 'A' // Begining of stream packet

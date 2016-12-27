@@ -47,6 +47,8 @@ void OpenBCI_32bit_Library::begin(void) {
 *  You will need to reflash your board! But now you can connect to pins `11`
 *    `12` via a FTDI serial port driver, really any serial to USB driver would
 *    work. Remember to use 3V3, 115200 baud, and have a common ground!
+* In this scenario, we set SER0 to 11 and 12 respectively, and set SER1 to 14 and 6. This way
+*    we can use the wired connection for higher speed data streaming and wireless for debugging
 * @author: AJ Keller (@pushtheworldllc)
 */
 void OpenBCI_32bit_Library::beginDebug(void) {
@@ -72,7 +74,7 @@ void OpenBCI_32bit_Library::beginDebug(void) {
 */
 boolean OpenBCI_32bit_Library::beginSecondarySerial(void) {
     // Initalize the serial 1 port
-    Serial1.begin(OPENBCI_BAUD_RATE);
+    Serial1.begin(OPENBCI_BAUD_RATE_WIFI);
     return true;
 }
 
@@ -431,7 +433,7 @@ void OpenBCI_32bit_Library::accelWriteAxisData(void) {
 */
 boolean OpenBCI_32bit_Library::boardBegin(void) {
     // Initalize the serial port baud rate
-    Serial0.begin(OPENBCI_BAUD_RATE);
+    Serial0.begin(OPENBCI_BAUD_RATE_USB);
 
     pinMode(OPENBCI_PIN_LED, OUTPUT);
     pinMode(OPENBCI_PIN_PGC, OUTPUT);
@@ -455,10 +457,10 @@ boolean OpenBCI_32bit_Library::boardBegin(void) {
 */
 boolean OpenBCI_32bit_Library::boardBeginDebug(void) {
     // Initalize the serial port baud rate
-    Serial0.begin(OPENBCI_BAUD_RATE);
+    Serial0.begin(OPENBCI_BAUD_RATE_USB);
 
     // Initalize the serial debug port
-    Serial1.begin(OPENBCI_BAUD_RATE);
+    Serial1.begin(OPENBCI_BAUD_RATE_WIFI);
 
     // Startup for interrupt
     setIntVector(_EXTERNAL_4_VECTOR, ADS_DRDY_Service); // connect interrupt to ISR
@@ -479,7 +481,7 @@ boolean OpenBCI_32bit_Library::boardBeginDebug(void) {
 */
 boolean OpenBCI_32bit_Library::boardBeginDebug(int baudRate) {
     // Initalize the serial port baud rate
-    Serial0.begin(OPENBCI_BAUD_RATE);
+    Serial0.begin(OPENBCI_BAUD_RATE_USB);
 
     // Initalize the serial debug port
     Serial1.begin(baudRate);
@@ -984,7 +986,7 @@ void OpenBCI_32bit_Library::writeAuxData(){
 }
 
 void OpenBCI_32bit_Library::writeTimeCurrent(void) {
-    uint32_t newTime = millis(); // serialize the number, placing the MSB in lower packets
+    uint32_t newTime = micros(); // serialize the number, placing the MSB in lower packets
     for (int j = 3; j >= 0; j--) {
         Serial0.write(newTime >> (j*8));
     }
