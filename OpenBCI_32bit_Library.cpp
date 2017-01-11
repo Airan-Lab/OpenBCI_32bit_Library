@@ -27,8 +27,9 @@ OpenBCI_32bit_Library::OpenBCI_32bit_Library() {
 * @description: The function the OpenBCI board will call in setup.
 * @author: AJ Keller (@pushtheworldllc)
 */
-void OpenBCI_32bit_Library::begin(void) {
+void OpenBCI_32bit_Library::begin(uint8_t srate) {
     curBoardMode = OPENBCI_BOARD_MODE_DEFAULT;
+    Rate_Adj = srate;
     // Bring the board up
     boardBegin();
 }
@@ -53,6 +54,7 @@ void OpenBCI_32bit_Library::begin(void) {
 */
 void OpenBCI_32bit_Library::beginDebug(void) {
     // Bring the board up
+    Rate_Adj = 0b110;
     boolean started = boardBeginDebug();
     curBoardMode = OPENBCI_BOARD_MODE_DEBUG;
 
@@ -121,18 +123,18 @@ char OpenBCI_32bit_Library::getCharSerial1(void) {
 
 /**
 * @description If `isSerialAvailableForRead()` is `true` then this function is
-*  called. Reads from `Serial0` first and foremost, which comes from the RFduino.
-*  If `sniffMode` is true and `Serial0` didn't have any data, we will try to
+*  called. Reads from `Serial1` first and foremost, which comes from the RFduino.
+*  If `sniffMode` is true and `Serial1` didn't have any data, we will try to
 *  read from `Serial1`. If both are not available then we will return a `0x00`
 *  which is NOT a command that the system will recognize, aka this function has
 *  many safe guards.
 * @returns {char} - The character from the serial port.
 */
 // char OpenBCI_32bit_Library::readOneSerialChar(void) {
-//     if (Serial0.available()) {
-//         return Serial0.read();
-//     } else if (sniffMode && Serial1.available()) {
+//     if (Serial1.available()) {
 //         return Serial1.read();
+//     } else if (sniffMode && Serial0.available()) {
+//         return Serial0.read();
 //     } else {
 //         return 0x00;
 //     }
@@ -1082,15 +1084,16 @@ void OpenBCI_32bit_Library::initialize_ads(){
     delay(40);
     resetADS(BOARD_ADS); // reset the on-board ADS registers, and stop DataContinuousMode
     delay(10);
-    WREG(CONFIG1,0xB6,BOARD_ADS); // tell on-board ADS to output its clk, set the data rate to 250SPS
+    WREG(CONFIG1,0xB0 + Rate_Adj,BOARD_ADS); // tell on-board ADS to output its clk, set the data rate to RATE_ADJ
     delay(40);
     resetADS(DAISY_ADS); // software reset daisy module if present
     delay(10);
     daisyPresent = smellDaisy(); // check to see if daisy module is present
     if(!daisyPresent){
-      WREG(CONFIG1,0x96,BOARD_ADS); // turn off clk output if no daisy present
+      WREG(CONFIG1,0x90 + Rate_Adj,BOARD_ADS); // turn off clk output if no daisy present
       numChannels = 8;    // expect up to 8 ADS channels
     }else{
+      WREG(CONFIG1, 0x90 + Rate_Adj,DAISY_ADS); //Change sample rate of Daisy to match main
       numChannels = 16;   // expect up to 16 ADS channels
     }
 
@@ -1318,13 +1321,13 @@ void OpenBCI_32bit_Library::removeDaisy(void){
 }
 
 void OpenBCI_32bit_Library::attachDaisy(void){
-    WREG(CONFIG1,0xB6,BOARD_ADS); // tell on-board ADS to output the clk, set the data rate to 250SPS
+    WREG(CONFIG1,0xB0+Rate_Adj,BOARD_ADS); // tell on-board ADS to output the clk, set the data rate to 250SPS
     delay(40);
     resetADS(DAISY_ADS); // software reset daisy module if present
     delay(10);
     daisyPresent = smellDaisy();
     if(!daisyPresent){
-        WREG(CONFIG1,0x96,BOARD_ADS); // turn off clk output if no daisy present
+        WREG(CONFIG1,0x90+Rate_Adj,BOARD_ADS); // turn off clk output if no daisy present
         numChannels = 8;    // expect up to 8 ADS channels
         if(!isRunning) Serial0.println("no daisy to attach!");
     }else{
@@ -1477,9 +1480,9 @@ void OpenBCI_32bit_Library::reportDefaultChannelSettings(void){
 //     // Get the slave select pin for this channel
 //     targetSS = getTargetSSForConstrainedChannelNumber(index);
 
-//     if (sniffMode && Serial1) {
+//     if (sniffMode && Serial0) {
 //         if (targetSS == BOARD_ADS) {
-//             Serial1.print("Set channel "); Serial1.print(channelNumber); Serial1.println(" settings");
+//             Serial0.print("Set channel "); Serial0.print(channelNumber); Serial0.println(" settings");
 //         }
 //     }
 

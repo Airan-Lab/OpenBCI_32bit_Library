@@ -9,10 +9,21 @@
 
 // Booleans Required for SD_Card_Stuff.ino
 boolean addAccelToSD = false; // On writeDataToSDcard() call adds Accel data to SD card write
-boolean addAuxToSD = false; // On writeDataToSDCard() call adds Aux data to SD card write
+boolean addAuxToSD = true; // On writeDataToSDCard() call adds Aux data to SD card write
 boolean SDfileOpen = false; // Set true by SD_Card_Stuff.ino on successful file open
 
-// 2 Button External Trigger Code
+//ADS Sample Rate
+#define ADS_RATE_250Hz  0b110
+#define ADS_RATE_500Hz  0b101
+#define ADS_RATE_1KHz   0b100
+#define ADS_RATE_2KHz   0b011
+#define ADS_RATE_4KHz   0b010
+#define ADS_RATE_8KHz   0b001
+#define ADS_RATE_16KHz  0b000
+
+const uint8_t Rate_Adj = ADS_RATE_250Hz;
+
+// Three External Trigger Code
 // --------------------------------------------------------
 //  << EXTERNAL TRIGGER FROM FUS and STIMULI >>
 const int fusTrig = 13;          // FUS Trigger (from IGT System)
@@ -25,8 +36,9 @@ int ssepValue;
 // --------------------------------------------------------
 
 void setup() {
-  // Bring up the OpenBCI Board
-  board.begin();
+  // Bring up the OpenBCI Board with the sample rate
+  //board.begin(Rate_Adj);
+  board.beginDebug();
 
   // Notify the board we don't want to use accel data
   board.useAccel = false;
@@ -38,9 +50,6 @@ void setup() {
   pinMode(fusTrig, INPUT);    // set the button pin direction
   pinMode(vepTrig, INPUT);
   pinMode(ssepTrig, INPUT);
-  fusValue = lastFusValue = digitalRead(fusTrig); // seed
-  ssepValue = lastSsepValue = digitalRead(ssepTrig); // seed
-  vepValue = lastVepValue = digitalRead(vepTrig); // seed
 }
 
 void loop() {

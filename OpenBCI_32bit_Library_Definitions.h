@@ -12,7 +12,7 @@
 
 // The default baud rate
 #define OPENBCI_BAUD_RATE_WIFI 115200
-#define OPENBCI_BAUD_RATE_USB 460800 //115200
+#define OPENBCI_BAUD_RATE_USB  115200 // 460800
 
 // File transmissions
 #define OPENBCI_BOP 'A' // Begining of stream packet
@@ -140,6 +140,8 @@
 
 // daisy module
 #define CLK_EN	5
+
+
 
 //LIS3DH
 #define READ_REG		0x80

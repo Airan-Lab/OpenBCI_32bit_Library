@@ -20,7 +20,7 @@ public:
     boolean accelHasNewData(void);
     void    accelUpdateAxisData(void);
     void    accelWriteAxisData(void);
-    void    begin(void);
+    void    begin(uint8_t srate);
     void    beginDebug(void);
     boolean beginSecondarySerial(void);
     char    getCharSerial0(void);
@@ -117,6 +117,7 @@ public:
 // BOARD
     boolean useAccel;
     boolean useAux;
+    byte Rate_Adj;
     void initialize(void);
     void initializeVariables(void);
     void printAllRegisters(void);
