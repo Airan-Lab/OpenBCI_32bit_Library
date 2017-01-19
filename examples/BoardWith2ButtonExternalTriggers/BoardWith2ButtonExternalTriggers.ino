@@ -24,7 +24,16 @@ int lastRightButtonValue;
 
 void setup() {
   // Bring up the OpenBCI Board
-  board.begin();
+  /* Possible Rates: 
+   * 250 Hz: ADS_RATE_250Hz
+   * 500 Hz: ADS_RATE_500Hz
+   * 1 kHz:  ADS_RATE_1kHz
+   * 2 kHz:  ADS_RATE_2kHz
+   * 4 kHz:  ADS_RATE_4kHz
+   * 8 kHz:  ADS_RATE_8kHz
+   * 16 kHz: ADS_RATE_16kHz
+   */
+  board.beginDebug(ADS_RATE_500Hz);
 
   // Notify the board we don't want to use accel data
   board.useAccel = false;
@@ -80,9 +89,9 @@ void loop() {
   }
 
   // Check the serial port for new data
-  if (board.hasDataSerial0()) {
+  if (board.hasDataSerial1()) {
     // Read one char from the serial port
-    char newChar = board.getCharSerial0();
+    char newChar = board.getCharSerial1();
 
     // Send to the sd library for processing
     sdProcessChar(newChar);

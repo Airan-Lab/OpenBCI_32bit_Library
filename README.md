@@ -1,291 +1,135 @@
-[![Stories in Ready](https://badge.waffle.io/OpenBCI/OpenBCI_32bit_Library.png?label=ready&title=Ready)](https://waffle.io/OpenBCI/OpenBCI_32bit_Library)
-# OpenBCI 32bit Library
-
-The (soon to be) official library for the OpenBCI 32bit Board.
-
+# How to connect the OpenBCI via wired USB and change the sample rate
 
 ## Table of Contents:
 
-1. [Minimums](#minimums)
-2. [Installing](#installing)
-3. [Upgrading](#upgrading)
-4. [Downgrading](#downgrading)
-3. [General Overview](#generalOverview)
-  1. [Includes](#includes)
-  2. [setup()](#setup)
-  3. [loop()](#loop)
-4. [System Overview](#systemOverview)
-5. [Reference Guide](#referenceGuide)
-  1. [Functions](#functions)
-  2. [Constants](#constants)
-
-## <a name="minimums"></a> Minimums:
-
-You just opened your OpenBCI (congrats!) and want to get started programming the firmware right now?! Ok, ok do the following minimums!
-1. Install the dongle drivers [from FTDI](http://www.ftdichip.com/FTDrivers.htm) for your operating system.
-2. Download the latest Arduino IDE software from the [Arduino site](www.arduino.cc)
-3. Follow the 2nd installation method "Manual install by copying ZIP file" to install the latest chipKIT-core hardware files from the [chipKIT-core wiki](http://chipkit.net/wiki/index.php?title=ChipKIT_core)
-
-## <a name="installing"></a> Installing:
-
-1. Download this repository zip or clone this repo (we clone directly into the `libraries` folder for development)
-2. Download [OpenBCI_32bit_SD](https://github.com/OpenBCI/OpenBCI_32bit_SD)
-3. Move both of the folders into your `libraries` folder (please make a folder in Arduino named libraries if you don't have one)
-  * Mac OSX: User/Documents/Arduino/libraries
-  * Windows: /My Documents/Arduino/libraries
-4. Restart Arduino IDE
-5. Open `DefaultBoard.ino` for a full featured example.
-6. Hack and make awesome stuff!
-
-## <a name="upgrading"></a> Upgrading:
-
-Checkout the [upgrade guide](./UPGRADE_GUIDE)!
-
-## <a name="downgrading"></a> Downgrading:
-
-Have a bunch of custom firmware based on the original firmware? Have no fear for previous releases are [here](https://github.com/OpenBCI/OpenBCI_32bit_Library/releases) and [here for the radios if needed](https://github.com/OpenBCI/OpenBCI_Radios/releases).
-
-## <a name="generalOverview"></a> General Overview:
-
-Your needs dictate what you need to include! This saves a ton of precious memory space!
-
-### <a name="includes"></a> Includes:
-
-#### Default OpenBCI with SD Card Functionality
-
-In order to use the SD card write functionality, you must not only include the file `SD_Card_Stuff.ino` located in examples/DefaultBoard, you must include the following:
-
-Headers:
-```Arduino
-#include <OBCI32_SD.h>
-#include <DSPI.h>
-#include <EEPROM.h>
-#include <OpenBCI_32bit_Library.h>
-#include <OpenBCI_32bit_Library_Definitions.h>
-```
+I. [Introduction](#intro)
+  1. [Why do this](#why)
+  2. [Caveats](#caveats)
+  3. [What do I need](#requirements)
+II. [Connecting and testing the USB Breakout Board](#usb)
+  1. [Test Echo IO on USB Breakout](#testusbbreakout)
+  2. [Solder headers onto OBCI and connect the USB Breakout Board](#connect)
+III. [Update the OBCI Firmware](#firmware)
+  1. [Prepare to update the OBCI Firmware](#prep)
+  2. [Set Tx/Rx Pins within the chipkit code](#pins)
+  3. [Download the new firmware to the board](#download)
+  4. [Optional: - change the baud and sample rate](#baud)
+  5. [Upload the new firmware](#upload)
+  6. [Set the COM Port settings](#com)
+  7. [Test the system](#testeeg)
+  8. [Connect the USB Isolator before connecting to a human](#isolator)
+IV. [Concluding Remarks](#conclusion)
+  1. [Firmware Modifications Made](#changelog)
+  2. [Thanks!!!](#thanks)
+  3. [Contribute!](#contribute)
 
-Variables used by `SD_Card_Stuff.ino`:
-```Arduino
-boolean addAccelToSD = false;
-boolean addAuxToSD = false;
-boolean SDfileOpen = false;
-```
 
-#### Bare OpenBCI Board with no SD card
+## <a name="intro"></a> I. Introduction
 
-Headers:
-```Arduino
-#include <DSPI.h>
-#include <OpenBCI_32bit_Library.h>
-#include <OpenBCI_32bit_Library_Definitions.h>
-```
+This tutorial shows how a third party USB breakout chip can be configured with OpenBCI (OBCI) to allow for a wired USB connection. I've only verified this on Windows, but there's no reason why it shouldn't work on other OSes.  For extra related information beyond this tutorial, see [this thread](http://openbci.com/forum/index.php?p=/discussion/712/prospects-for-higher-sample-rates/p1) on the forum.
 
-You do not need to declare any variables...
+### <a name="why"></a> 1. Why do this?
 
-### <a name="setup"></a> setup():
+Reasons one might carry out the modifications herein include:
+* Increasing the sample rate of OBCI - The default rates of 250 Hz (8-channel) and 125 Hz (16-channel) can be increased, but need a faster data connection than the 115200 baud throughput that bottlenecks the default setup. So far, the maximum speed I can get with this is 1kHz on 8-channels at 460800 baud. I haven't tested the code for the Daisy mode since I do not have one.
+* More reliable packet delivery for timing-sensitive applications
 
-#### Accel (default)
-```Arduino
-void setup() {
-  board.begin(); // Bring up the OpenBCI Board
-  board.useAccel = true; // Notify the board we want to use accel data, this effects `::sendChannelData()`
-}
-```
+### <a name="caveats"></a> 2. Caveats
 
-#### Aux
-```Arduino
-void setup() {
-  board.begin(); // Bring up the OpenBCI Board
-  board.useAux = true; // Notify the board we want to use aux data, this effects `::sendChannelData()`
-}
-```
+The modified system won't run on the default version of OBCI's software ([the Processing code](https://github.com/OpenBCI/OpenBCI_Processing)).  The change in baud rate and possibly other changes break it.  This might be easy to fix, but I haven't investigated it.  It works just fine with the [OBCI Node JS Server](https://github.com/OpenBCI/OpenBCI_NodeJS). In that repos there are also instrucitons on how to get the system to interface with Python.
 
-#### Bare board
-```Arduino
-void setup() {
-  board.begin(); // Bring up the OpenBCI Board
-}
-```
+### <a name="requirements"></a> 3. What do I need?
 
-### <a name="loop"></a> loop():
+ 1. OpenBCI V3 32-bit system. Simple modifications should also work for the 8-bit board.
+ 2. UART-capable USB breakout board. E.g. [Adafruit FT232H](https://www.adafruit.com/product/2264)
+ 3. USB isolator capable of "full speed" (12.0 Mbps). E.g. [Adafruit 100mA USB Isolator](https://www.adafruit.com/product/2107)
+ 4. USB cables to connect the PC-->USB isolator --> USB breakout board. For the models listed, it's 1x Micro USB cable and 1x Mini USB Cable.
+ 6. Female/Male jumper wires.  Shorter is better, to avoid signal degradation.  E.g. [Adafruit's](https://www.adafruit.com/products/825)
+ 7. Female/Female jumper wires.  Used to do a basic I/O echo test on the USB breakout board.  E.g. [Adafruit's](https://www.adafruit.com/products/794)
+ 8. Access to a soldering iron, if using the FT232H USB breakout, in order to solder on the pins.  Your OBCI must also have its J3 and J4 pinblock headers soldered on, if they haven't already been soldered on.
 
-We will start with the basics here, and work our way up... The loop function can be thought of as the meat and core executor of the OpenBCI_32bit_Library functionality. Keep in mind the main purpose of this library is to stream data from the ADS1299 to the computer, that's our focus, everything takes a back seat to that.
+### <a name="connect"></a> II. Connecting and testing the USB breakout board
 
-A bare board, not using the SD, accel, or aux data must have the following:
-```Arduino
-void loop() {
-  if (board.streaming) {
-    if (board.channelDataAvailable) {
-      // Read from the ADS(s), store data, set channelDataAvailable flag to false
-      board.updateChannelData();
+### <a name="testusbbreakout"></a> 1. Test echo IO on the USB breakout board
+Connect the USB breakout board to your computer with a USB cable.  If using the FT232H, follow [Adafruit's tutorial](https://learn.adafruit.com/adafruit-ft232h-breakout) up through the [serial UART page](https://learn.adafruit.com/adafruit-ft232h-breakout/serial-uart) to verify that the drivers are working on your system and that a basic IO test succeeeds.
 
-      if (board.timeSynced) {
-        board.sendChannelDataWithTimeAndRawAux();
-      } else {
-        // Send standard packet with channel data
-        board.sendChannelDataWithRawAux();
-      }
-    }
-  }
+### <a name="connect"></a> 2. Solder headers onto OBCI and connect the USB breakout board
+Solder headers into the J3 and J4 pin blocks on OBCI (Pins GND, VOD, D12, D13, D11, D10, RST, D17).
 
-  // Check the serial port for new data
-  if (board.hasDataSerial0()) {
-    // Read one char and process it
-    board.processChar(board.getCharSerial0());
-  }
-}
-```
-The first `if` statement is only `true` if a `b` command is ran through the `processChar` function. The next `if` statement exploits a `volatile` interrupt driven `boolean` called `channelDataAvailable`. This interrupt driven system is new as of firmware version 2.0.0 a discussion of it can be [found here](https://github.com/OpenBCI/OpenBCI_32bit_Library/issues/22). If the ADS1299 has signaled to the Board new data is ready, the function `updateChannelData()` is executed. This function will grab new data from the Board's ADS1299 (and from the daisy's ADS1299) and store that data to the arrays: `lastBoardDataRaw`, `boardChannelDataRaw`, `meanBoardDataRaw`, `lastDaisyDataRaw`, `daisyChannelDataRaw`, `meanDaisyDataRaw`, which can be accessed to drive filters or whatever your heart desires.
+Use 3 female/male jumper wires to connect pins GND, TX (D0 on the FT232H), RX (D1 on the FT232H), to GND, D12, and D11 respectively, on OBCI.
 
-## <a name="systemOverview"></a> System Overview:
+## <a name="firmware"></a> III. Update the OBCI firmware
 
-If you send a packet from the Pic32 to the Device RFduino and you start it with `0x41`, write 31 bytes, and follow with `0xCX` (where `X` can be `0-F` hex) then the packet will immediately be sent from the Device radio. This is counter to how if you want to send a message longer than 31 bytes (takes over two packets to transmit from Device radio to Host radio (Board to Dongle)) then you simply write the message, and that message will be sent in a multipacket format that allows it to be reassembled on the Dongle. This reassembling of data is critical to over the air programming.
+### <a name="prep"></a> 1. Prepare to update the OBCI firmware
+We will be replacing OBCI's default firmware with a custom version.  To prepare for the update, follow the procedure [here](http://docs.openbci.com/Hardware/05-Cyton_Board_Programming_Tutorial) up to the point of putting the board into bootloader mode.  We won't do that until we are ready to upload the new code.
 
-# <a name="referenceGuide"></a> Reference Guide:
+### <a name="pins"></a> 2. Set TX/RX pins within the chipkit code
+We need to change a few lines of code in the OBCI board definition file to enable pins D11 as TX and D12 as RX.  Find the file whose path should resemble: Documents/Arduino/hardware/chipkit-core/pic32/variants/openbci/Board_Defs.h
 
-## <a name="functions"></a> Functions:
+In this file make changes to the corresponding code so that it reads:
 
-### accelHasNewData()
+\#define       _SER1_TX_OUT         PPS_OUT_U2TX     // RPB14R = U2TX = 2  
+\#define       _SER1_TX_PIN         11  //7                // RB14 CVREF/AN10/C3INB/RPB14/VBUSON/SCK1/CTED5/RB14  
+\#define       _SER1_RX_IN          PPS_IN_U2RX      // U2RXR = RPA1 = 0  
+\#define       _SER1_RX_PIN         12  //10               // RA1  PGEC3/VREF-/CVREF-/AN1/RPA1/CTED2/PMD6/RA1  
 
-Reads a status register to see if there is new accelerometer data.
 
-**_Returns_** {boolean}
+Save the changes.
 
-`true` if the accelerometer has new data.
+### <a name="download"></a> 3. Download the new firmware to the board
+The custom firmware and associated libraries are in [this repository](https://github.com/WinslowStrong/OpenBCI_Wired_USB).  Place the entire folder into /Arduino/libraries/ (replacing the original OpenBCI_32bit_Library folder; symlinks are useful here). In examples/ there are a bunch of example .ino files that provide examples about how to use the firmware and can be stored anywhere, but each individual example need to be in the same folder as `SD_Card_Stuff.ino`.
 
-### accelUpdateAxisData()
+### <a name="baud"></a> 4. Optional - change the baud and sample rates
+The default OBCI firmware is configured to use a USB serial connection at 115200 baud and run at a 250 Hz sample rate for 8 channels, and 125 Hz alternating sample rate in "daisy mode" (i.e. with 16 channels).
 
-Reads from the accelerometer to get new X, Y, and Z data. Updates the global array `axisData`.
+The custom firmware for this tutorial sets a default baud rate of 460800 and a sample rate of 500 Hz for its 8-channel system (and 250 Hz for 16-channel alternating). You can change the baud and sample rate parameters by opening the OBCI_USB_Serial.ino file in the Arduino editor. 
+* baud - Change the line `#define OPENBCI_BAUD_RATE_USB  460800` in OpenBCI_32bit_Library_Definitions.h by replacing 460800 with the baud rate you want.  I'm not sure that any rates other than factor-of-two multiples/divisors can work.
+* Change the sample rate via the variable passed into the `board.beginDebug()` constructor in your .ino.  The possible values are:  ADS_RATE_250Hz, ADS_RATE_500Hz, ADS_RATE_1kHz, ADS_RATE_2kHz, ADS_RATE_4kHz, ADS_RATE_8kHz, and ADS_RATE_16kHz. 
 
-### begin()
 
-The function the OpenBCI board will call in `setup()`.
+##### Limitations
+* I haven't been able to get this setup to work above 460800 baud (communication becomes totally garbled at 921600 baud).  
+* On my system, 460800 baud can handle a max sample rate of 1 kHz with no dropped channels over 15 minutes.  The baud and max sample rate track each other down from here by factors of 2.
+* Winslow Strong for a [previous version of this hack](https://github.com/WinslowStrong/OpenBCI_Wired_USB) tried a different USB breakout board, [Numato's FT2232H](http://numato.com/ft2232h-breakout-module/), in an attempt to overcome the occasional lost packets at 460800 baud and 500 Hz sample rate using the 16 channel OBCI.  The thought was that its larger send/receive buffers (4k vs 1k) might solve the problem.  It does reduce dropped packets, but it caused another issue on his system: approximately 1/3 of sent commands don't get through successfully.
 
-### beginDebug()
 
-The function the OpenBCI board will call in setup. Turns sniff mode on and allows you to tap into the serial port that is broken out on the OpenBCI 32bit board.
+### <a name="upload"></a> 5. Upload the new firmware
+Resume the [uploading tutorial](http://docs.openbci.com/Hardware/05-Cyton_Board_Programming_Tutorial) by putting the OBCI into bootloader mode.  Follow the rest of the tutorial to upload the custom firmware that you downloaded above. In case it doesn't run for you for some reason or you later want to revert, you can follow the same procedure to upload the default firmware, available [here](https://github.com/OpenBCI/OpenBCI_32bit).  
 
-You must alter `Board_Defs.h` file located:
+### <a name="com"></a> 6. Set the COM port settings
+In Linux (Ubuntu 16.04 LTS), everything worked out of the box. In Windows (you can probably [make similar changes on Mac OS](http://docs.openbci.com/Tutorials/10-Mac_FTDI_Driver_Fix)), go into device manager-->Ports, and find the COM port of the USB breakout board (NOT the USB dongle!).  Right click on it, select "Properties" and select the "Port Settings" tab.  Make these changes:
+* "bits per second" is the baud rate. Set it to whatever you initialized Serial1 to in the new firmware (460800 if you made no change).
+* Within "Advanced," set the port latency to 8 ms.  1 ms is too fast for the FT232H, and can lead to dropped packets. Also, 16 ms is a bit too long and causes the buffer on the FT232H to fill too quickly
+* Also within "Advanced," set the Receive and Transmit USB Transfer rate to be 512 bytes. If set to 4kB, then the computer waits for 4 kB of data to be accumulated before shuttling over the USB connection. However, this causes the connection to be very stuttery and cauess packet drop
 
-On Mac:    
-`/Users/username/Documents/Arduino/hardware/chipkit-core/pic32/variants/openbci/Board_Defs.h`
-On Windows:
+On my system, these changes need to be "OKed" individually, or else the baud rate change doesn't save.  It might tell you that you have to restart your system, but you don't.  Just unplug the USB connection and plug it back in.
 
-`C:\Users\username\Documents\Arduino\hardware\chipkit-core\pic32\variants\openbci\Board_Defs.h`
 
-Specifically lines `311` and `313`, change `7` and `10` to `11` and `12` for `_SER1_TX_PIN` and `_SER1_RX_PIN` respectively. Check out this sweet gif if you are a visual person http://g.recordit.co/3jH01sMD6Y.gif
+### <a name="testeeg"></a> 7. Test the system
+As mentioned up front, the default OBCI Processing software won't run as-is with this custom OBCI firmware. Instead, OpenBCI provides a brilliant [OBCI Node JS Server](https://github.com/OpenBCI/OpenBCI_NodeJS) which works amazingly with the system. When initializing, use these settings:
+* COM port of the *Serial USB* (not the OBCI dongle!): "-p=COM*#*" where "*#*" is the number of the COM port of the Serial USB breakout board. On Mac/Ubuntu this will look like "/dev/ttyUSB#" 
+*  baud rate: "-b=*rate*"  where "*rate*" is the baud rate you are using (230400 unless you changed it).
+* Iff you are using the 16 channel OBCI, then supply "-d" to force daisy mode.
 
-You will need to reflash your board! But now you can connect to pins `11` (`TX`) and `12` (`RX`) via any 3V3 serial to USB driver. Remember to use 3V3, 115200 baud, and have a common ground!
+### <a name="isolator"></a> 8. Connect the USB isolator before connecting to a human
+Use your mini USB cable to connect the USB isolator to your computer.  The USB breakout board then connects to the isolator.  This is a safety precaution so that a human connected to OBCI is electronically isolated from the mains power supply running through the computer and its USB port.  
 
-### hasDataSerial0()
+## <a name="conclusion"></a> III. Concluding remarks
 
-Called in every `loop()` and checks `Serial0`.
+### <a name="changelog"></a> 1. Firmware modifications
 
-**_Returns_** {boolean}
+The modifications made to the firmware are:
+* In the OBCI board definition chipkit core file, enabled pins 11 (D11 on the board) and 12 (D12) as UART1 TX and RX, repsectively.
+* Replaced all "Serial0" --> "Serial1" and vice-versa in the .ino and the OpenBCI_32_Daisy library files.  Serial0 is still the RFduino, while Serial1 is UART1, using OBCI pins D11 and D12 to send and recieve data.
+* Changed `sendChannelData()` and its cousins to write start byte `0xA0` first instead of `A`. I assume this was originally because the RFDuino does some packet changing, which no longer takes place since we go through the wired USB connection.
+* Changed all calls of `board.begin()` to be `board.beginDebug(uint8_t srate)` because for some reason both serial ports need to be open.
+* Have board check on Serial 1 for input instead of Serial 0
 
-`true` if there is data ready to be read.
 
-### processChar(character)
+### <a name="thanks"></a> 2. Thanks!
 
-Process one char at a time from serial port. This is the main command processor for the OpenBCI system. Considered mission critical for normal operation.
+Most of the inspiration/foundations for this were made possible by Winslow Strong (@Winslow_Strong on the OBCI forums), who figured out how to get the wired USB connection to work with v1 of the firmware (this is an update to work with firmware v2). Huge thanks to William Croft (@wjcroft) for troubleshooting and making clarifications about the hardware. Many thanks goes to AJ (@pushtheworld) as well for providing feedback on the firmware v2 and cluing me in towards the NodeJS architecture.
 
-**_character_** {char}
+### <a name="contribute"></a> 3. Contribute!
 
-The character to process.
-
-**_Returns_** {boolean}
-
-`true` if the command was recognized, `false` if not.
-
-### getCharSerial0()
-
-If `hasDataSerial0()` is `true` then this function is called. Reads from `Serial0` first and foremost, which comes from the RFduino. If no data is available then returns a `0x00` which is NOT a command that the system will recognize as a safe guard.
-
-**_Returns_** {char}
-
-The character from the serial port.
-
-### sendChannelData()
-
-Writes channel data, aux data, and footer to serial port. This is the old way to send channel data. Based on global variables `useAux` and `useAccel` Must keep for portability. Will look to deprecate in 3.0.0.
-
-If `useAccel` is `true` then sends data from `axisData` array and sets the contents of `axisData` to `0`.
-
-If `useAux` is `true` then sends data from `auxData` array and sets the contents of `auxData` to `0`.
-
-Adds stop byte `OPENBCI_EOP_STND_ACCEL`. See Constants below for more info.
-
-### sendChannelDataWithAccel()
-
-Writes channel data and `axisData` array to serial port in the correct stream packet format.
-
-Adds stop byte `OPENBCI_EOP_STND_ACCEL`. See Constants below for more info.
-
-### sendChannelDataWithRawAux()
-
-Writes channel data and `auxData` array to serial port in the correct stream packet format.
-
-Adds stop byte `OPENBCI_EOP_STND_RAW_AUX`. See Constants below for more info.
-
-### sendChannelDataWithTimeAndAccel()
-
-Writes channel data, `axisData` array, and 4 byte unsigned time stamp in ms to serial port in the correct stream packet format.
-
-`axisData` will be split up and sent on the samples with `sampleCounter` of 7, 8, and 9 for X, Y, and Z respectively. Driver writers parse accordingly.
-
-If the global variable `sendTimeSyncUpPacket` is `true` (set by `processChar` getting a time sync set `<` command) then:
-    Adds stop byte `OPENBCI_EOP_ACCEL_TIME_SET` and sets `sendTimeSyncUpPacket` to `false`.
-
-Else if `sendTimeSyncUpPacket` is `false` then:
-    Adds stop byte `OPENBCI_EOP_ACCEL_TIME_SYNCED`
-
-### sendChannelDataWithTimeAndRawAux()
-
-Writes channel data, `auxData[0]` 2 bytes, and 4 byte unsigned time stamp in ms to serial port in the correct stream packet format.
-
-If the global variable `sendTimeSyncUpPacket` is `true` (set by `processChar` getting a time sync set `<` command) then:
-    Adds stop byte `OPENBCI_EOP_RAW_AUX_TIME_SET` and sets `sendTimeSyncUpPacket` to `false`.
-Else if `sendTimeSyncUpPacket` is `false` then:
-    Adds stop byte `OPENBCI_EOP_RAW_AUX_TIME_SYNCED`
-
-### updateChannelData()
-
-Called when the board ADS1299 has new data available. If there is a daisy module attached, that data is also fetched here.
-
-### waitForNewChannelData()
-
-Check status register to see if data is available from the ADS1299.
-
-**_Returns_** {boolean}
-
-`true` if data is available.  
-
-## <a name="constants"></a> Constants:
-
-### OPENBCI_EOP_STND_ACCEL
-
-`0xC0` - End of standard stream packet.
-
-### OPENBCI_EOP_STND_RAW_AUX
-
-`0xC1` - End of stream packet with raw packet.
-
-### OPENBCI_EOP_USER_DEFINED
-
-`0xC2` - End of stream packet, user defined.
-
-### OPENBCI_EOP_ACCEL_TIME_SET
-
-`0xC3` - End of time sync up with accelerometer stream packet.
-
-### OPENBCI_EOP_ACCEL_TIME_SYNCED
-
-`0xC4` - End of time synced stream packet.
-
-### OPENBCI_EOP_RAW_AUX_TIME_SET
-
-`0xC5` - End of time sync up stream packet.
-
-### OPENBCI_EOP_RAW_AUX_TIME_SYNCED
-
-`0xC6` - End of time synced stream packet.
+If you do some modifications based on this work that you think could be useful for others, please share it.  Posting your code to github and/or updating this document would be very appreciated!

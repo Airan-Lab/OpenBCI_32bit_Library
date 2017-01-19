@@ -12,10 +12,19 @@
 
 // The default baud rate
 #define OPENBCI_BAUD_RATE_WIFI 115200
-#define OPENBCI_BAUD_RATE_USB  115200 // 460800
+#define OPENBCI_BAUD_RATE_USB  460800 //115200 //230400 // 460800
+
+//ADS Sample Rate
+#define ADS_RATE_250Hz  0b110
+#define ADS_RATE_500Hz  0b101
+#define ADS_RATE_1kHz   0b100
+#define ADS_RATE_2kHz   0b011
+#define ADS_RATE_4kHz   0b010
+#define ADS_RATE_8kHz   0b001
+#define ADS_RATE_16kHz  0b000
 
 // File transmissions
-#define OPENBCI_BOP 'A' // Begining of stream packet
+#define OPENBCI_BOP                     0xA0 // Begining of stream packet
 #define OPENBCI_EOP_STND_ACCEL          0xC0 // End of standard stream packet
 #define OPENBCI_EOP_STND_RAW_AUX        0xC1 // End of stream packet with raw packet
 #define OPENBCI_EOP_USER_DEFINED        0xC2 // End of stream packet, user defined

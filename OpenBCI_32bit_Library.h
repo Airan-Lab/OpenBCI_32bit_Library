@@ -21,7 +21,7 @@ public:
     void    accelUpdateAxisData(void);
     void    accelWriteAxisData(void);
     void    begin(uint8_t srate);
-    void    beginDebug(void);
+    void    beginDebug(uint8_t srate);
     boolean beginSecondarySerial(void);
     char    getCharSerial0(void);
     char    getCharSerial1(void);

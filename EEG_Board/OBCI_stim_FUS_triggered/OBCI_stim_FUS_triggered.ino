@@ -1,5 +1,5 @@
 // Main Loop for OBCI system to be triggered from the 
-// Adapted by Jeffrey Wang (gojeff@stanford.edu) from pushbutton Contributed example by Irene Vigue Guix (@viguix)
+// Adapted by Jeffrey Wang (@dancingdarwin) from pushbutton Contributed example by Irene Vigue Guix (@viguix)
 
 #include <DSPI.h>
 #include <OBCI32_SD.h>
@@ -12,22 +12,13 @@ boolean addAccelToSD = false; // On writeDataToSDcard() call adds Accel data to 
 boolean addAuxToSD = true; // On writeDataToSDCard() call adds Aux data to SD card write
 boolean SDfileOpen = false; // Set true by SD_Card_Stuff.ino on successful file open
 
-//ADS Sample Rate
-#define ADS_RATE_250Hz  0b110
-#define ADS_RATE_500Hz  0b101
-#define ADS_RATE_1KHz   0b100
-#define ADS_RATE_2KHz   0b011
-#define ADS_RATE_4KHz   0b010
-#define ADS_RATE_8KHz   0b001
-#define ADS_RATE_16KHz  0b000
-
-const uint8_t Rate_Adj = ADS_RATE_250Hz;
+const uint8_t Rate_Adj = ADS_RATE_500Hz;
 
 // Three External Trigger Code
 // --------------------------------------------------------
 //  << EXTERNAL TRIGGER FROM FUS and STIMULI >>
 const int fusTrig = 13;          // FUS Trigger (from IGT System)
-const int vepTrig = 17;          // LED Stimulus Trigger (from RPi)
+const int vepTrig = 17;          //  LED Stimulus Trigger (from RPi)
 const int ssepTrig = 18;         // Stimulus Isolator Trigger (from RPi)
 int fusValue;          // used to hold the latest button reading
 int vepValue;
@@ -37,8 +28,16 @@ int ssepValue;
 
 void setup() {
   // Bring up the OpenBCI Board with the sample rate
-  //board.begin(Rate_Adj);
-  board.beginDebug();
+  /* Possible Rates: 
+   * 250 Hz: ADS_RATE_250Hz
+   * 500 Hz: ADS_RATE_500Hz
+   * 1 kHz:  ADS_RATE_1kHz
+   * 2 kHz:  ADS_RATE_2kHz
+   * 4 kHz:  ADS_RATE_4kHz
+   * 8 kHz:  ADS_RATE_8kHz
+   * 16 kHz: ADS_RATE_16kHz
+   */
+  board.beginDebug(ADS_RATE_500Hz);
 
   // Notify the board we don't want to use accel data
   board.useAccel = false;
@@ -97,6 +96,17 @@ void loop() {
   if (board.hasDataSerial0()) {
     // Read one char from the serial port
     char newChar = board.getCharSerial0();
+
+    // Send to the sd library for processing
+    sdProcessChar(newChar);
+
+    // Send to the board library
+    board.processChar(newChar);
+  }
+  
+  if (board.hasDataSerial1()) {
+    // Read one char from the serial port
+    char newChar = board.getCharSerial1();
 
     // Send to the sd library for processing
     sdProcessChar(newChar);
